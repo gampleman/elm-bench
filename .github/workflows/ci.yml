@@ -69,8 +69,8 @@ jobs:
         run: npm test
         timeout-minutes: 5
 
-  publish:
-    name: Publish
+  publish-elm:
+    name: Publish Elm package
     if: github.ref == 'refs/heads/main'
     needs: [elm, cli]
     runs-on: ubuntu-latest
@@ -80,7 +80,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
 
       - name: Cache ~/.elm
         uses: actions/cache@v4
@@ -91,15 +90,29 @@ jobs:
       - name: Install Elm
         run: npm install -g elm
 
-      # Publish Elm package (no-op if version hasn't changed)
       - name: Elm Publish
         uses: dillonkearns/elm-publish-action@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Publish npm package (no-op if version hasn't changed)
-      - name: Check if npm publish needed
-        id: npm-check
+  publish-npm:
+    name: Publish npm package
+    if: github.ref == 'refs/heads/main'
+    needs: [elm, cli]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Check if publish needed
+        id: check
         working-directory: cli
         run: |
           CURRENT=$(node -p "require('./package.json').version")
@@ -110,16 +123,14 @@ jobs:
             echo "publish=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build CLI
-        if: steps.npm-check.outputs.publish == 'true'
+      - name: Install and build
+        if: steps.check.outputs.publish == 'true'
         working-directory: cli
         run: |
           npm ci
           npm run build
 
-      - name: Publish to npm
-        if: steps.npm-check.outputs.publish == 'true'
+      - name: Publish with provenance
+        if: steps.check.outputs.publish == 'true'
         working-directory: cli
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
