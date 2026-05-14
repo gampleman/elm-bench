@@ -8,7 +8,6 @@ import type { BenchmarkModule } from "./discover.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ELM_RUNNER_SRC = path.resolve(__dirname, "..", "elm", "src");
-const ELM_BENCH_SRC = path.resolve(__dirname, "..", "..", "src");
 
 export interface GeneratedProject {
   dir: string;
@@ -100,14 +99,10 @@ async function patchElmJson(
   const sourceDirs: string[] = elmJson["source-directories"] || ["src"];
 
   const runnerSrcRelative = path.relative(project.dir, ELM_RUNNER_SRC);
-  const benchSrcRelative = path.relative(project.dir, ELM_BENCH_SRC);
   const genDirRelative = path.relative(project.dir, genDir);
 
   if (!sourceDirs.includes(runnerSrcRelative)) {
     sourceDirs.push(runnerSrcRelative);
-  }
-  if (!sourceDirs.includes(benchSrcRelative)) {
-    sourceDirs.push(benchSrcRelative);
   }
   if (!sourceDirs.includes(genDirRelative)) {
     sourceDirs.push(genDirRelative);

@@ -1,6 +1,6 @@
 {
   "name": "elm-bench",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI runner for Elm benchmarks with filtering, correctness checks, and multi-target support",
   "license": "MIT",
   "type": "module",
@@ -13,12 +13,18 @@
     "elm-bench": "./bin/elm-bench.js"
   },
   "main": "./dist/index.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "elm/"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "tsup && node --import tsx --test tests/*.test.ts",
-    "test:fixture": "tsup && node dist/cli.js run --project test-fixture/benchmarks/elm.json"
+    "test:fixture": "tsup && node dist/cli.js run --project test-fixture/benchmarks/elm.json",
+    "prepublishOnly": "tsup"
   },
   "engines": {
     "node": ">=18.0.0"
