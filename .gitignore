@@ -1,0 +1,9 @@
+node_modules/
+elm-stuff/
+cli/node_modules/
+cli/dist/
+cli/elm/elm-stuff/
+cli/test-fixture/benchmarks/elm-stuff/
+cli/test-fixture/benchmarks/benchmark.html
+*.tsbuildinfo
+docs.json

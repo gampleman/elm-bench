@@ -1,0 +1,42 @@
+{
+  "name": "elm-bench",
+  "version": "1.0.0",
+  "description": "CLI runner for Elm benchmarks with filtering, correctness checks, and multi-target support",
+  "type": "module",
+  "bin": {
+    "elm-bench": "./bin/elm-bench.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "tsup && node --import tsx --test tests/*.test.ts",
+    "test:fixture": "tsup && node dist/cli.js run --project test-fixture/benchmarks/elm.json"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "asciichart": "^1.5.25",
+    "canvas": "^3.2.3",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "cross-spawn": "^7.0.6",
+    "elm": "^0.19.1-6",
+    "elm-json": "^0.2.13",
+    "elm-test-rs": "^3.0.2-0",
+    "supports-terminal-graphics": "^0.1.0",
+    "tinyglobby": "^0.2.12"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.52.0"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.0"
+  }
+}

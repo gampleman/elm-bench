@@ -1,0 +1,19 @@
+{
+    "type": "package",
+    "name": "gampleman/elm-bench",
+    "summary": "Benchmarking with filtering, correctness checks, and fuzzer support",
+    "license": "MIT",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Bench"
+    ],
+    "elm-version": "0.19.0 <= v < 0.20.0",
+    "dependencies": {
+        "elm/core": "1.0.0 <= v < 2.0.0",
+        "elm/json": "1.0.0 <= v < 2.0.0",
+        "elm/random": "1.0.0 <= v < 2.0.0",
+        "elm-explorations/benchmark": "1.0.0 <= v < 2.0.0",
+        "elm-explorations/test": "2.0.0 <= v < 3.0.0"
+    },
+    "test-dependencies": {}
+}

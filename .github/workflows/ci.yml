@@ -1,0 +1,97 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  elm:
+    name: Elm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache ~/.elm
+        uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: elm-${{ hashFiles('elm.json', 'review/elm.json') }}
+
+      - name: Install Elm tools
+        run: |
+          npm install -g elm elm-format elm-review elm-test-rs
+
+      - name: Compile package
+        run: elm make --docs=docs.json
+
+      - name: Check formatting
+        run: elm-format src/ --validate
+
+      - name: Run elm-review
+        run: elm-review
+
+  cli:
+    name: CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: cli/node_modules
+          key: cli-node-modules-${{ hashFiles('cli/package-lock.json') }}
+
+      - name: Cache ~/.elm
+        uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: elm-cli-${{ hashFiles('cli/elm/elm.json', 'elm.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+        timeout-minutes: 5
+
+  publish-elm:
+    name: Publish Elm package
+    if: github.ref == 'refs/heads/main'
+    needs: [elm, cli]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache ~/.elm
+        uses: actions/cache@v4
+        with:
+          path: ~/.elm
+          key: elm-${{ hashFiles('elm.json') }}
+
+      - name: Install Elm
+        run: npm install -g elm
+
+      - name: Elm Publish
+        uses: dillonkearns/elm-publish-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
