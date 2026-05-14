@@ -196,56 +196,8 @@ Options:
   --no-optimize            Disable --optimize (for debugging)
 ```
 
-## Elm API Quick Reference
-
-### Comparing Implementations
-
-| Function | Description |
-|----------|-------------|
-| `Bench.rank` | Compare N implementations with shared runner. Verifies correctness. |
-| `Bench.compare` | Compare two implementations. Verifies correctness. |
-| `Bench.series` | Compare N implementations without verification. |
-| `Bench.benchmark` | Measure a single function. |
-
-### Scaling
-
-| Function | Description |
-|----------|-------------|
-| `Bench.scale` | Run at multiple input sizes with static data generation. |
-| `Bench.scaleFuzz` | Run at multiple input sizes with fuzzer-based generation. |
-
-### Fuzzer Variants
-
-| Function | Description |
-|----------|-------------|
-| `Bench.rankFuzz` | Like `rank` with fuzzer-generated input. |
-| `Bench.compareFuzz` | Like `compare` with fuzzer-generated input. |
-
-### Utilities
-
-| Function | Description |
-|----------|-------------|
-| `Bench.describe` | Group benchmarks. |
-| `Bench.skipEqualityCheck` | Disable automatic verification. |
-
-## Project Structure
-
-```
-elm-bench/
-├── elm.json                  # Elm package (gampleman/elm-bench)
-├── src/Bench.elm             # The benchmarking library
-├── review/                   # elm-review configuration
-├── cli/                      # npm package (elm-bench CLI)
-│   ├── package.json
-│   ├── bin/elm-bench.js
-│   ├── src/                  # TypeScript source
-│   ├── elm/                  # Headless runner (Platform.worker)
-│   └── tests/
-└── .github/workflows/ci.yml
-```
-
 ## Requirements
 
-- Node.js >= 18
+- Node.js >= 22
 - Elm 0.19.1 (bundled with CLI)
 - For browser targets: `npm install playwright`

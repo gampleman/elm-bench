@@ -20,8 +20,7 @@ jobs:
           key: elm-${{ hashFiles('elm.json', 'review/elm.json') }}
 
       - name: Install Elm tools
-        run: |
-          npm install -g elm elm-format elm-review elm-test-rs
+        run: npm install -g elm elm-format elm-review elm-test-rs
 
       - name: Compile package
         run: elm make --docs=docs.json
@@ -70,8 +69,8 @@ jobs:
         run: npm test
         timeout-minutes: 5
 
-  publish-elm:
-    name: Publish Elm package
+  publish:
+    name: Publish
     if: github.ref == 'refs/heads/main'
     needs: [elm, cli]
     runs-on: ubuntu-latest
@@ -81,6 +80,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Cache ~/.elm
         uses: actions/cache@v4
@@ -91,7 +91,35 @@ jobs:
       - name: Install Elm
         run: npm install -g elm
 
+      # Publish Elm package (no-op if version hasn't changed)
       - name: Elm Publish
         uses: dillonkearns/elm-publish-action@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish npm package (no-op if version hasn't changed)
+      - name: Check if npm publish needed
+        id: npm-check
+        working-directory: cli
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          PUBLISHED=$(npm view elm-bench version 2>/dev/null || echo "0.0.0")
+          if [ "$CURRENT" != "$PUBLISHED" ]; then
+            echo "publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build CLI
+        if: steps.npm-check.outputs.publish == 'true'
+        working-directory: cli
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to npm
+        if: steps.npm-check.outputs.publish == 'true'
+        working-directory: cli
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

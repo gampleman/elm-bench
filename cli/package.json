@@ -2,7 +2,13 @@
   "name": "elm-bench",
   "version": "1.0.0",
   "description": "CLI runner for Elm benchmarks with filtering, correctness checks, and multi-target support",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gampleman/elm-bench",
+    "directory": "cli"
+  },
   "bin": {
     "elm-bench": "./bin/elm-bench.js"
   },
