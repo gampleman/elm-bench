@@ -6,7 +6,7 @@ module Bench exposing
     , toInternalBenchmark, toInternalTest, encode
     )
 
-{-| A benchmarking library designed for the `elm-benchmark` CLI runner.
+{-| A benchmarking library designed for the `elm-bench` CLI runner.
 
 Provides a richer API than `elm-explorations/benchmark` with:
 
