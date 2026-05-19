@@ -41,6 +41,8 @@ Verifying benchmark correctness...
 
   ✓ All implementations produce consistent results
 
+Seed: 1847293651  (reproduce with --seed 1847293651)
+
 Running benchmarks in node...
 
 Benchmark Results
@@ -98,12 +100,31 @@ $ elm-bench run -t node -t chromium -t firefox --filter mapToList
 
 When rankings differ across targets, entries are highlighted in green (ranked higher than first target) or red (ranked lower) — immediately surfacing cross-engine performance characteristics.
 
+## Quick Start
+
+```bash
+cd my-project
+npx elm-bench init
+```
+
+This creates a `benchmarks/` directory with `elm.json` (with `gampleman/elm-bench` installed) and a starter `Benchmarks.elm` file.
+
+Then run your benchmarks:
+
+```bash
+elm-bench run
+```
+
 ## Installation
 
 ```bash
-cd my-project/benchmarks
-npm install elm-bench
-elm-json install gampleman/elm-bench
+npm install -g elm-bench
+```
+
+Or as a project dependency:
+
+```bash
+npm install --save-dev elm-bench
 ```
 
 ## Key Features
@@ -130,6 +151,32 @@ Verifying benchmark correctness...
 
 Use `Bench.skipEqualityCheck` for cases where implementations intentionally differ (e.g. different valid orderings).
 
+### Optimization Workflow
+
+Scaffold a head-to-head comparison for any function in your project:
+
+```bash
+elm-bench optimize MyModule.myFunction --arg "(List.range 1 1000)"
+```
+
+This:
+
+1. Copies `MyModule` into `Baseline` and `Optimized` variants (with dead code removed)
+2. Generates a `Bench.rank` benchmark comparing them
+3. You edit the `Optimized` copy and iterate
+
+Add more variants to compare:
+
+```bash
+elm-bench optimize MyModule.myFunction --add Experimental
+```
+
+Use `--watch` for instant feedback as you edit:
+
+```bash
+elm-bench run --watch
+```
+
 ### Filtering
 
 Only run what you need:
@@ -153,14 +200,27 @@ Bench.rankFuzz "mapToList"
     ]
 ```
 
-The same fuzzer is used for both the correctness check (fuzz test) and to generate the benchmark input (seeded deterministically via `--seed`).
+The same fuzzer is used for both the correctness check (fuzz test) and to generate the benchmark input (seeded deterministically via `--seed`). The seed is printed with every run so you can reproduce results.
+
+#### Debugging Fuzzer Inputs
+
+If you see unexpected benchmark results and want to know what input the fuzzer generated, copy the seed from the output and use `Bench.sampleFuzzer` in `elm repl`:
+
+```
+> import Bench
+> import Fuzz
+> Bench.sampleFuzzer 1847293651 (Fuzz.list (Fuzz.intRange 1 100))
+Just [42, 7, 93, ...] : Maybe (List Int)
+```
+
+This gives you the exact value the fuzzer produced during that run.
 
 ### Multi-Target Execution
 
 Compare across JavaScript engines to ensure optimizations are consistent:
 
 ```bash
-elm-bench run -t node -t chromium -t firefox
+elm-bench run -t node -t chromium -t firefox -t webkit
 ```
 
 Requires Playwright for browser targets: `npm install playwright`.
@@ -178,26 +238,46 @@ Bench.scale "sorting"
     ]
 ```
 
-Results are rendered as a chart with log-scale detection.
+Results are rendered as a chart with automatic log-scale detection.
+
+### Output Formats
+
+- **console** (default) — colored terminal output with progress bars and charts
+- **json** — machine-readable for CI integration
+- **markdown** — GitHub-flavored tables for easy paste into PRs
+
+```bash
+elm-bench run --reporter markdown
+```
 
 ## CLI Reference
 
 ```
-elm-bench run [options] [globs...]
+elm-bench init [options]
+  Initialize a benchmarks directory with elm-bench installed.
+  --project <path>         Base directory to create benchmarks/ in
 
-Options:
+elm-bench run [options] [globs...]
+  Run benchmarks.
   -f, --filter <pattern>   Only run benchmarks matching pattern
   -t, --target <name>      Execution target (repeatable): node, chromium, firefox, webkit
-  -r, --reporter <format>  Output: console (default), json
+  -r, --reporter <format>  Output: console (default), json, markdown
   --compiler <path>        Path to elm binary
   --project <path>         Path to benchmarks elm.json
   --seed <number>          Random seed for fuzz-based inputs
   --skip-test              Skip correctness verification
   --no-optimize            Disable --optimize (for debugging)
+  -w, --watch              Watch for changes and re-run affected benchmarks
+
+elm-bench optimize <Module.function> [options]
+  Scaffold an optimization comparison benchmark.
+  --add <name>             Add a new variant to an existing optimization
+  --arg <expr>             Argument expression for the runner (repeatable)
+  --project <path>         Path to elm.json
 ```
 
 ## Requirements
 
-- Node.js >= 22
+- Node.js >= 18
 - Elm 0.19.1 (bundled with CLI)
 - For browser targets: `npm install playwright`

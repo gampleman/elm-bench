@@ -25,8 +25,9 @@ export async function verifyBenchmarks(
   const elmTestRsBin = findElmTestRs();
   const elmCompiler = options.compiler || findElmCompiler();
 
+  const testPathRelative = path.relative(generated.dir, generated.testElmPath);
   const args = [
-    generated.testElmPath,
+    testPathRelative,
     "--compiler", elmCompiler,
     "--fuzz", "10",
     "--report", "console",
@@ -78,7 +79,7 @@ export async function verifyBenchmarks(
       if (resolved) return;
       resolved = true;
 
-      const noTests = /Running 0 tests/.test(stdout) || /no tests found/i.test(stderr);
+      const noTests = /Running 0 tests/.test(stdout) || /no tests found/i.test(stderr) || /No exposed values of type Test/i.test(stdout);
       if (code === 0 || noTests) {
         if (noTests) {
           console.log(chalk.dim("  No correctness checks to run\n"));

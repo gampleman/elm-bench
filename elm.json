@@ -3,7 +3,7 @@
     "name": "gampleman/elm-bench",
     "summary": "Benchmarking with filtering, correctness checks, and fuzzer support",
     "license": "MIT",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "exposed-modules": [
         "Bench"
     ],

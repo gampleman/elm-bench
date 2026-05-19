@@ -15,7 +15,6 @@ export interface GeneratedProject {
   mainElmPath: string;
   testElmPath: string | null;
   elmJsonPath: string;
-  originalElmJson: string;
 }
 
 export async function generate(
@@ -23,22 +22,23 @@ export async function generate(
   benchmarks: BenchmarkModule[]
 ): Promise<GeneratedProject> {
   const genDir = path.join(project.dir, "elm-stuff", "node-benchmark-runner");
-  await fs.mkdir(genDir, { recursive: true });
+  const srcDir = path.join(genDir, "src");
+  await fs.mkdir(srcDir, { recursive: true });
 
-  const mainElmPath = path.join(genDir, "Main.elm");
+  const mainElmPath = path.join(srcDir, "Main.elm");
+  const elmJsonPath = path.join(genDir, "elm.json");
 
-  const originalElmJson = await fs.readFile(project.elmJsonPath, "utf8");
-  await patchElmJson(project, genDir);
+  await generateElmJson(project, genDir, elmJsonPath);
   await generateMainElm(benchmarks, mainElmPath);
 
   const usesBench = benchmarks.some((mod) => mod.benchmarkType === "bench");
   let testElmPath: string | null = null;
   if (usesBench) {
-    testElmPath = path.join(genDir, "BenchmarkVerification.elm");
+    testElmPath = path.join(srcDir, "BenchmarkVerification.elm");
     await generateTestElm(benchmarks, testElmPath);
   }
 
-  return { dir: project.dir, outputDir: genDir, mainElmPath, testElmPath, elmJsonPath: project.elmJsonPath, originalElmJson };
+  return { dir: genDir, outputDir: genDir, mainElmPath, testElmPath, elmJsonPath };
 }
 
 function resolveElmJson(): string {
@@ -72,9 +72,10 @@ async function elmJsonInstall(projectDir: string, pkg: string): Promise<void> {
   });
 }
 
-async function patchElmJson(
+async function generateElmJson(
   project: Project,
-  genDir: string
+  genDir: string,
+  elmJsonPath: string
 ): Promise<void> {
   if (project.elmJson.type !== "application") {
     throw new Error(
@@ -82,34 +83,42 @@ async function patchElmJson(
     );
   }
 
-  // Use elm-json to ensure required dependencies are direct
-  const deps = (project.elmJson.dependencies as { direct?: Record<string, string> })?.direct || {};
+  // Start from user's elm.json but write our copy into genDir
+  const elmJson = JSON.parse(await fs.readFile(project.elmJsonPath, "utf8"));
+
+  // Rewrite source-directories relative to genDir, excluding any that point
+  // into the genDir itself (avoids conflicts with our generated files)
+  const userSourceDirs: string[] = elmJson["source-directories"] || ["src"];
+  const sourceDirs: string[] = [];
+  for (const dir of userSourceDirs) {
+    const abs = path.resolve(project.dir, dir);
+    const rel = path.relative(genDir, abs);
+    if (rel === "" || rel === "src" || !rel.startsWith("..")) continue;
+    sourceDirs.push(rel);
+  }
+
+  // Add the runner source and genDir itself
+  const runnerSrcRelative = path.relative(genDir, ELM_RUNNER_SRC);
+  if (!sourceDirs.includes(runnerSrcRelative)) {
+    sourceDirs.push(runnerSrcRelative);
+  }
+  sourceDirs.push("src");
+
+  elmJson["source-directories"] = sourceDirs;
+  await fs.writeFile(elmJsonPath, JSON.stringify(elmJson, null, 4));
+
+  // Install any missing dependencies into our generated elm.json
+  const deps = (elmJson.dependencies as { direct?: Record<string, string> })?.direct || {};
   const needed: string[] = [];
   if (!deps["elm/json"]) needed.push("elm/json");
   if (!deps["elm/random"]) needed.push("elm/random");
   if (!deps["BrianHicks/elm-trend"]) needed.push("BrianHicks/elm-trend");
   if (!deps["elm-explorations/test"]) needed.push("elm-explorations/test");
+  if (!deps["elm-explorations/benchmark"]) needed.push("elm-explorations/benchmark");
 
   for (const pkg of needed) {
-    await elmJsonInstall(project.dir, pkg);
+    await elmJsonInstall(genDir, pkg);
   }
-
-  // Re-read elm.json (elm-json may have modified it)
-  const elmJson = JSON.parse(await fs.readFile(project.elmJsonPath, "utf8"));
-  const sourceDirs: string[] = elmJson["source-directories"] || ["src"];
-
-  const runnerSrcRelative = path.relative(project.dir, ELM_RUNNER_SRC);
-  const genDirRelative = path.relative(project.dir, genDir);
-
-  if (!sourceDirs.includes(runnerSrcRelative)) {
-    sourceDirs.push(runnerSrcRelative);
-  }
-  if (!sourceDirs.includes(genDirRelative)) {
-    sourceDirs.push(genDirRelative);
-  }
-
-  elmJson["source-directories"] = sourceDirs;
-  await fs.writeFile(project.elmJsonPath, JSON.stringify(elmJson, null, 4));
 }
 
 async function generateMainElm(

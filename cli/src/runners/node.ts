@@ -22,6 +22,9 @@ export async function runInNode(
     setInterval,
     clearTimeout,
     clearInterval,
+    setImmediate: setImmediate ?? ((fn: () => void) => setTimeout(fn, 0)),
+    requestAnimationFrame: (fn: () => void) => setTimeout(fn, 0),
+    cancelAnimationFrame: clearTimeout,
     console: {
       log: () => {},
       warn: () => {},
@@ -43,13 +46,9 @@ export async function runInNode(
   const app = Elm.Main.init({ flags });
 
   return new Promise<BenchmarkResult>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Benchmark timed out after 10 minutes"));
-    }, 10 * 60 * 1000);
 
     if (app.ports.reportError) {
       app.ports.reportError.subscribe((msg: unknown) => {
-        clearTimeout(timeout);
         const error = msg as { type: string; filter?: string };
         if (error.type === "no-match") {
           reject(new Error(`No benchmarks matching "${error.filter}".`));
@@ -79,7 +78,6 @@ export async function runInNode(
 
     if (app.ports.reportResult) {
       app.ports.reportResult.subscribe((msg: unknown) => {
-        clearTimeout(timeout);
         progress.finish();
         const message = msg as PortMessage;
         if (message.type === "result") {
@@ -89,7 +87,6 @@ export async function runInNode(
         }
       });
     } else {
-      clearTimeout(timeout);
       reject(
         new Error(
           "reportResult port not found. The Elm runner module may not be compiled correctly."

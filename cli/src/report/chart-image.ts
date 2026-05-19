@@ -1,4 +1,4 @@
-import { createCanvas } from "canvas";
+import { createCanvas, type Canvas } from "canvas";
 import type { BenchmarkResult, BenchmarkSuccess } from "./types.js";
 
 interface ScaleDataPoint {
@@ -20,7 +20,7 @@ const COLORS = [
   "#06b6d4", // cyan
 ];
 
-export function renderScaleChartImage(result: BenchmarkResult): Buffer | null {
+function extractSeries(result: BenchmarkResult): ScaleSeries[] | null {
   if (result.kind !== "group") return null;
 
   const seriesMap = new Map<string, ScaleDataPoint[]>();
@@ -49,11 +49,31 @@ export function renderScaleChartImage(result: BenchmarkResult): Buffer | null {
     points.sort((a, b) => a.size - b.size);
     allSeries.push({ name, points });
   }
-
-  return drawChart(allSeries);
+  return allSeries;
 }
 
-function drawChart(allSeries: ScaleSeries[]): Buffer {
+export function renderScaleChartImage(result: BenchmarkResult): Buffer | null {
+  const allSeries = extractSeries(result);
+  if (!allSeries) return null;
+  const canvas = drawChart(allSeries);
+  return canvas.toBuffer("image/png");
+}
+
+export async function renderScaleChartSixel(result: BenchmarkResult): Promise<string | null> {
+  const allSeries = extractSeries(result);
+  if (!allSeries) return null;
+  const canvas = drawChart(allSeries);
+  const ctx = canvas.getContext("2d");
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  try {
+    const { image2sixel } = await import("sixel");
+    return image2sixel(new Uint8ClampedArray(imageData.data.buffer), canvas.width, canvas.height, 256, 2);
+  } catch {
+    return null;
+  }
+}
+
+function drawChart(allSeries: ScaleSeries[]): Canvas {
   const width = 700;
   const height = 400;
   const padding = { top: 30, right: 30, bottom: 60, left: 80 };
@@ -177,7 +197,7 @@ function drawChart(allSeries: ScaleSeries[]): Buffer {
     ctx.fillText(allSeries[i].name, padding.left + 32, y);
   }
 
-  return canvas.toBuffer("image/png");
+  return canvas;
 }
 
 function generateTicks(min: number, max: number, log: boolean, count: number): number[] {

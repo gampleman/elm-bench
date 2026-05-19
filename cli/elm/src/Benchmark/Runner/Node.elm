@@ -107,7 +107,8 @@ update (Step b) model =
 
 stepNext : Benchmark -> Cmd Msg
 stepNext benchmark =
-    Benchmark.step benchmark
+    Process.sleep 0
+        |> Task.andThen (\_ -> Benchmark.step benchmark)
         |> Task.perform Step
 
 

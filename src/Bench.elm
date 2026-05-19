@@ -1,6 +1,7 @@
 module Bench exposing
     ( Benchmark, benchmark, compare, rank, describe, scale, series
     , compareFuzz, rankFuzz, scaleFuzz
+    , sampleFuzzer
     , skipEqualityCheck
     , filter
     , toInternalBenchmark, toInternalTest, encode
@@ -25,9 +26,14 @@ Provides a richer API than `elm-explorations/benchmark` with:
 # Fuzzer Variants
 
 These use fuzzers from `elm-explorations/test` to generate random input data.
-The fuzzer is sampled once per benchmark run (seeded deterministically).
+The fuzzer is sampled once per benchmark run (seeded deterministically) and all
+fuzzers receive the same seed for the run (this makes debugging possible),
+however input will vary across runs (unless you run with the same `--seed`
+argument).
 
 @docs compareFuzz, rankFuzz, scaleFuzz
+
+@docs sampleFuzzer
 
 
 # Correctness Verification
@@ -496,6 +502,35 @@ filter pattern bench =
                     Just (Group name filtered)
 
 
+{-| Sample a fuzzer with a specific seed. Use this in `elm repl` to reproduce
+the exact input that was used during a benchmark run.
+
+When you see unexpected results from a fuzz-based benchmark, copy the seed
+from the benchmark output and run in `elm repl`:
+
+    > import Bench
+    > import Fuzz
+    > Bench.sampleFuzzer 1234567 (Fuzz.list Fuzz.int)
+    [3, -7, 42, ...] : List Int
+
+This gives you the exact value the fuzzer produced during that run.
+
+(We cannot print the value in the benchmark run, since unlike elm-test, elm-bench
+runs in `--optimize` mode and so doesn't have access to `Debug.log`.)
+
+-}
+sampleFuzzer : Int -> Fuzzer a -> Maybe a
+sampleFuzzer seedInt fuzzer =
+    let
+        seed =
+            Random.initialSeed seedInt
+    in
+    Random.step (Test.Runner.fuzz fuzzer) seed
+        |> Tuple.first
+        |> Result.toMaybe
+        |> Maybe.map Tuple.first
+
+
 
 -- FOR RUNNERS
 
@@ -539,7 +574,7 @@ toInternalBenchmark seed bench =
 
         Group name children ->
             Benchmark.describe name
-                (children |> seededMap toInternalBenchmark seed)
+                (children |> List.map (toInternalBenchmark seed))
 
         Scale scaleName _ implementations ->
             Benchmark.describe scaleName
@@ -596,21 +631,3 @@ encode bench =
                         implementations
                   )
                 ]
-
-
-
---- random helpers
-
-
-seededMap : (Random.Seed -> a -> b) -> Random.Seed -> List a -> List b
-seededMap fn initialSeed =
-    List.foldr
-        (\item ( seed, result ) ->
-            let
-                ( itemSeed, nextSeed ) =
-                    Random.step Random.independentSeed seed
-            in
-            ( nextSeed, fn itemSeed item :: result )
-        )
-        ( initialSeed, [] )
-        >> Tuple.second

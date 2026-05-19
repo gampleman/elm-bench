@@ -61,11 +61,6 @@ export async function runInBrowser(
   fs.writeFileSync(htmlPath, html);
 
   return new Promise<BenchmarkResult>(async (resolve, reject) => {
-    const timeout = setTimeout(() => {
-      browser.close();
-      reject(new Error("Benchmark timed out after 10 minutes"));
-    }, 10 * 60 * 1000);
-
     await page.exposeFunction("__benchmarkStructure", (_msgStr: string) => {
       if (process.stdout.isTTY) {
         process.stdout.write(chalk.dim("  Warming up...\n"));
@@ -81,7 +76,6 @@ export async function runInBrowser(
     });
 
     await page.exposeFunction("__benchmarkResult", (msgStr: string) => {
-      clearTimeout(timeout);
       progress.finish();
       const msg = JSON.parse(msgStr) as PortMessage;
       if (msg.type === "result") {

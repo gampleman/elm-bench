@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { isScaleResult, renderScaleChart } from "./chart.js";
-import { renderScaleChartImage, displayInlineImage } from "./chart-image.js";
+import { renderScaleChartImage, renderScaleChartSixel, displayInlineImage } from "./chart-image.js";
 import type {
   BenchmarkResult,
   BenchmarkStatus,
@@ -18,6 +18,33 @@ async function getTerminalGraphics() {
     _terminalGraphics = { iterm2: false, kitty: false, sixel: false };
   }
   return _terminalGraphics;
+}
+
+type ImageMode = "iterm2" | "sixel" | "none";
+
+function getImageMode(graphics: { iterm2: boolean; kitty: boolean; sixel: boolean }): ImageMode {
+  const termProgram = (process.env.TERM_PROGRAM || "").toLowerCase();
+  // VSCode reports iterm2 support but doesn't render the OSC 1337 inline image protocol
+  if (termProgram !== "vscode" && (graphics.iterm2 || graphics.kitty)) return "iterm2";
+  if (graphics.sixel) return "sixel";
+  return "none";
+}
+
+async function tryRenderImage(result: BenchmarkResult, mode: ImageMode): Promise<boolean> {
+  if (mode === "iterm2") {
+    const png = renderScaleChartImage(result);
+    if (png) {
+      displayInlineImage(png);
+      return true;
+    }
+  } else if (mode === "sixel") {
+    const sixelData = await renderScaleChartSixel(result);
+    if (sixelData) {
+      process.stdout.write(sixelData + "\n");
+      return true;
+    }
+  }
+  return false;
 }
 
 export async function formatConsoleOutput(
@@ -39,15 +66,12 @@ async function formatSingleEnvironment(result: BenchmarkResult): Promise<void> {
   const flat = flattenResults(result, []);
   let totalBenchmarks = 0;
   const graphics = await getTerminalGraphics();
-  const supportsImages = graphics.iterm2 || graphics.kitty;
+  const imageMode = getImageMode(graphics);
 
   for (const { path, result: r } of flat) {
-    if (r.kind === "group" && isScaleResult(r) && supportsImages) {
+    if (r.kind === "group" && isScaleResult(r) && imageMode !== "none") {
       console.log(`  ${chalk.bold(formatPath(path, r.name))}`);
-      const png = renderScaleChartImage(r);
-      if (png) {
-        displayInlineImage(png);
-      } else {
+      if (!(await tryRenderImage(r, imageMode))) {
         const chartLines = renderScaleChart(r);
         for (const line of chartLines) console.log(line);
       }
@@ -67,7 +91,7 @@ async function formatMultiEnvironment(
   environments: string[]
 ): Promise<void> {
   const graphics = await getTerminalGraphics();
-  const supportsImages = graphics.iterm2 || graphics.kitty;
+  const imageMode = getImageMode(graphics);
   const primaryEnv = environments[0];
   const primaryFlat = flattenResults(results[primaryEnv], []);
   let totalBenchmarks = 0;
@@ -92,15 +116,7 @@ async function formatMultiEnvironment(
         const envResult = findMatchingResult(results[env], path, r.name);
         if (envResult && envResult.kind === "group" && isScaleResult(envResult)) {
           console.log(chalk.dim(`\n    ${env}:`));
-          if (supportsImages) {
-            const png = renderScaleChartImage(envResult);
-            if (png) {
-              displayInlineImage(png);
-            } else {
-              const chartLines = renderScaleChart(envResult);
-              for (const line of chartLines) console.log(`  ${line}`);
-            }
-          } else {
+          if (imageMode === "none" || !(await tryRenderImage(envResult, imageMode))) {
             const chartLines = renderScaleChart(envResult);
             for (const line of chartLines) console.log(`  ${line}`);
           }
