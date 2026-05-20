@@ -1,6 +1,6 @@
 {
   "name": "elm-bench",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "CLI runner for Elm benchmarks with filtering, correctness checks, and multi-target support",
   "license": "MIT",
   "type": "module",

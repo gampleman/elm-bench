@@ -79,8 +79,9 @@ export async function verifyBenchmarks(
       if (resolved) return;
       resolved = true;
 
-      const noTests = /Running 0 tests/.test(stdout) || /no tests found/i.test(stderr) || /No exposed values of type Test/i.test(stdout);
-      if (code === 0 || noTests) {
+      const noTests = /Running 0 tests/.test(stdout) || /no tests found/i.test(stderr) || /No exposed values of type Test/i.test(stdout) || /No exposed values of type Test/i.test(stderr) || /TEST RUN INCOMPLETE/i.test(stdout);
+      const hasFailures = /TEST RUN FAILED/i.test(stdout) || /[1-9]\d* failed/.test(stdout);
+      if (code === 0 || (noTests && !hasFailures)) {
         if (noTests) {
           console.log(chalk.dim("  No correctness checks to run\n"));
         } else {

@@ -202,6 +202,7 @@ async function generateTestElm(
   const testElm = `module BenchmarkVerification exposing (suite)
 
 import Bench
+import Expect
 import Test exposing (Test)
 ${imports.join("\n")}
 
@@ -219,7 +220,7 @@ suite =
             test
 
         Nothing ->
-            Test.describe "Benchmark verification" []
+            Test.test "no verification needed" (\\_ -> Expect.pass)
 `;
 
   await fs.writeFile(outputPath, testElm);
