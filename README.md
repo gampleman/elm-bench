@@ -279,5 +279,6 @@ elm-bench optimize <Module.function> [options]
 ## Requirements
 
 - Node.js >= 18
-- Elm 0.19.1 (bundled with CLI)
+- Elm 0.19.1 (bundled with CLI) or 0.19.2 — pass `--compiler` to use your own
+  binary, e.g. the one installed by `elm-tooling`
 - For browser targets: `npm install playwright`

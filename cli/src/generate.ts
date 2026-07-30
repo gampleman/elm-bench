@@ -1,8 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-import spawn from "cross-spawn";
+import { elmInstall } from "./elm-install.js";
 import type { Project } from "./project.js";
 import type { BenchmarkModule } from "./discover.js";
 
@@ -19,7 +18,8 @@ export interface GeneratedProject {
 
 export async function generate(
   project: Project,
-  benchmarks: BenchmarkModule[]
+  benchmarks: BenchmarkModule[],
+  compiler?: string
 ): Promise<GeneratedProject> {
   const genDir = path.join(project.dir, "elm-stuff", "node-benchmark-runner");
   const srcDir = path.join(genDir, "src");
@@ -28,7 +28,7 @@ export async function generate(
   const mainElmPath = path.join(srcDir, "Main.elm");
   const elmJsonPath = path.join(genDir, "elm.json");
 
-  await generateElmJson(project, genDir, elmJsonPath);
+  await generateElmJson(project, genDir, elmJsonPath, compiler);
   await generateMainElm(benchmarks, mainElmPath);
 
   const usesBench = benchmarks.some((mod) => mod.benchmarkType === "bench");
@@ -41,41 +41,11 @@ export async function generate(
   return { dir: genDir, outputDir: genDir, mainElmPath, testElmPath, elmJsonPath };
 }
 
-function resolveElmJson(): string {
-  try {
-    const require = createRequire(import.meta.url);
-    return require.resolve("elm-json/bin/elm-json");
-  } catch {
-    return "elm-json";
-  }
-}
-
-async function elmJsonInstall(projectDir: string, pkg: string): Promise<void> {
-  const elmJsonBin = resolveElmJson();
-  return new Promise((resolve, reject) => {
-    const proc = spawn(elmJsonBin, ["install", "--yes", pkg], {
-      cwd: projectDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stderr = "";
-    proc.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`elm-json install ${pkg} failed: ${stderr}`));
-    });
-
-    proc.on("error", () => resolve());
-  });
-}
-
 async function generateElmJson(
   project: Project,
   genDir: string,
-  elmJsonPath: string
+  elmJsonPath: string,
+  compiler?: string
 ): Promise<void> {
   if (project.elmJson.type !== "application") {
     throw new Error(
@@ -107,7 +77,9 @@ async function generateElmJson(
   elmJson["source-directories"] = sourceDirs;
   await fs.writeFile(elmJsonPath, JSON.stringify(elmJson, null, 4));
 
-  // Install any missing dependencies into our generated elm.json
+  // Install any missing dependencies into our generated elm.json.
+  // elm/json goes first: the compiler refuses to work on an application that
+  // lacks it, so `elm install` for anything else would fail until it's there.
   const deps = (elmJson.dependencies as { direct?: Record<string, string> })?.direct || {};
   const needed: string[] = [];
   if (!deps["elm/json"]) needed.push("elm/json");
@@ -117,7 +89,7 @@ async function generateElmJson(
   if (!deps["elm-explorations/benchmark"]) needed.push("elm-explorations/benchmark");
 
   for (const pkg of needed) {
-    await elmJsonInstall(genDir, pkg);
+    await elmInstall(genDir, pkg, compiler);
   }
 }
 

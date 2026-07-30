@@ -64,9 +64,10 @@ program
   .command("init")
   .description("Initialize a benchmarks directory with elm-bench installed")
   .option("--project <path>", "Base directory to create benchmarks/ in")
+  .option("--compiler <path>", "Path to elm binary")
   .action(async (options) => {
     try {
-      await init({ projectPath: options.project });
+      await init({ projectPath: options.project, compiler: options.compiler });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`\nError: ${message}`);

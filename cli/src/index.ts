@@ -59,7 +59,7 @@ export async function run(options: RunOptions): Promise<void> {
     }
   }
 
-  const generated = await generate(project, benchmarks);
+  const generated = await generate(project, benchmarks, options.compiler);
 
   if (!options.skipTest) {
     const passed = await verifyBenchmarks(generated, {

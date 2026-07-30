@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createRequire } from "node:module";
-import spawn from "cross-spawn";
+import { elmInstall, elmCompilerVersion } from "./elm-install.js";
 
 export interface InitOptions {
   projectPath?: string;
+  compiler?: string;
 }
 
 export async function init(options: InitOptions): Promise<void> {
@@ -53,11 +53,16 @@ export async function init(options: InitOptions): Promise<void> {
     // No parent elm.json found, that's fine
   }
 
+  // Match the compiler we'll actually be running: the Elm compiler refuses to
+  // touch a project whose elm-version differs from its own, so hardcoding
+  // 0.19.1 would break 0.19.2 users.
+  const elmVersion = await elmCompilerVersion(options.compiler);
+
   // Create elm.json as an application
   const elmJson = {
     type: "application",
     "source-directories": sourceDirs,
-    "elm-version": "0.19.1",
+    "elm-version": elmVersion,
     dependencies: {
       direct: {
         "elm/core": "1.0.5",
@@ -74,8 +79,12 @@ export async function init(options: InitOptions): Promise<void> {
   await fs.writeFile(elmJsonPath, JSON.stringify(elmJson, null, 4) + "\n");
 
   // Install gampleman/elm-bench and its peer dependency
-  await elmJsonInstall(benchmarksDir, "gampleman/elm-bench");
-  await elmJsonInstall(benchmarksDir, "elm-explorations/benchmark");
+  await elmInstall(benchmarksDir, "gampleman/elm-bench", options.compiler);
+  await elmInstall(
+    benchmarksDir,
+    "elm-explorations/benchmark",
+    options.compiler
+  );
 
   // Create starter Benchmarks.elm
   const benchmarksElm = `module Benchmarks exposing (suite)
@@ -99,40 +108,3 @@ suite =
   console.log(`\nRun \`elm-bench run\` to execute your benchmarks.`);
 }
 
-function resolveElmJson(): string {
-  try {
-    const require = createRequire(import.meta.url);
-    return require.resolve("elm-json/bin/elm-json");
-  } catch {
-    return "elm-json";
-  }
-}
-
-async function elmJsonInstall(
-  projectDir: string,
-  pkg: string
-): Promise<void> {
-  const elmJsonBin = resolveElmJson();
-  return new Promise((resolve, reject) => {
-    const proc = spawn(elmJsonBin, ["install", "--yes", pkg], {
-      cwd: projectDir,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stderr = "";
-    proc.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`elm-json install ${pkg} failed: ${stderr}`));
-    });
-
-    proc.on("error", (err) => {
-      reject(
-        new Error(`Could not run elm-json. Is it installed? (${err.message})`)
-      );
-    });
-  });
-}

@@ -1,23 +1,11 @@
 import path from "node:path";
-import { createRequire } from "node:module";
 import spawn from "cross-spawn";
+import { resolveElmBinary } from "./elm-install.js";
 import type { GeneratedProject } from "./generate.js";
 
 export interface CompileOptions {
   compiler?: string;
   optimize: boolean;
-}
-
-function resolveElmBinary(compiler?: string): string {
-  if (compiler) {
-    return path.resolve(compiler);
-  }
-  try {
-    const require = createRequire(import.meta.url);
-    return require.resolve("elm/bin/elm");
-  } catch {
-    return "elm";
-  }
 }
 
 export async function compile(
